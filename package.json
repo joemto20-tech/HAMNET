@@ -1,0 +1,32 @@
+{
+  "name": "ham-command-terminal",
+  "version": "1.0.0",
+  "description": "HAM Field Network Terminal",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.ham.commandterminal",
+    "productName": "HAM Command Terminal",
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "public/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
