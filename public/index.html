@@ -1571,7 +1571,7 @@ const DATA = {
 };
 
 const CODE = "4769";
-const MENUS = ["BRIEFING","ATK FEED","MAP","FACTIONS","BROADCAST","NEWSWIRE","COMMS","HOLOTAPES","UPDATES","NOTES","CHECKLIST","EXIT"];
+const MENUS = ["BRIEFING","ATK FEED","MAP","FACTIONS","BROADCAST","NEWSWIRE","COMMS","HOLOTAPES","CHECK FOR UPDATES","NOTES","CHECKLIST","EXIT"];
 const MENU_SCREENS = ["briefing","radd","map","factions","broadcast","reports","comms","holotapes","updates","notes","checklist","lock"];
 
 let screen = "lock";
@@ -2495,6 +2495,89 @@ function renderRecorder() {
   addBtn("◄ BACK", goBack);
 }
 
+
+async function renderUpdates() {
+  var body = frame(
+    "CHECK FOR UPDATES",
+    "HAM FIELD NETWORK",
+    "CONNECTING TO UPDATE SERVER..."
+  );
+
+  var box = document.createElement("div");
+  box.className = "text-body";
+  box.style.padding = "18px";
+  body.appendChild(box);
+
+  box.innerHTML =
+    '<div style="font-size:22px;color:#4cff91;margin-bottom:12px;">CONTACTING HAM SERVER...</div>' +
+    '<div style="color:#2a9155;">Opening secure update channel...</div>';
+
+  try {
+    if (typeof playSound === "function") playSound("connecting", 0.75);
+
+    var response = await fetch(
+      "https://joemto20-tech.github.io/HAMNET/updates/version.json?t=" + Date.now()
+    );
+
+    if (!response.ok) throw new Error("Update server returned " + response.status);
+
+    var update = await response.json();
+
+    var CURRENT = "4.6";
+    var latest = String(update.version || "UNKNOWN");
+
+    if (latest !== CURRENT) {
+      if (typeof playSound === "function") playSound("alert", 0.8);
+
+      box.innerHTML =
+        '<div style="font-size:24px;color:#4cff91;margin-bottom:14px;">NEW SOFTWARE AVAILABLE</div>' +
+
+        '<div style="margin-bottom:14px;">INSTALLED<br>' +
+        '<span style="color:#2a9155;font-size:18px;">HAM OS ' + CURRENT + '</span></div>' +
+
+        '<div style="margin-bottom:14px;">LATEST<br>' +
+        '<span style="color:#4cff91;font-size:20px;">HAM OS ' + latest + '</span></div>' +
+
+        '<div style="color:#4cff91;margin-bottom:8px;">RELEASE NOTES</div>' +
+        '<div style="line-height:1.7;margin-bottom:16px;">' +
+        ((update.news || []).map(function(n){ return "• " + n; }).join("<br>") || "• No release notes transmitted.") +
+        '</div>' +
+
+        '<div style="color:#2a9155;margin-bottom:6px;">PACKAGE LOCATION</div>' +
+        '<div style="color:#4cff91;word-break:break-all;">' + (update.download || "NO DOWNLOAD LINK PROVIDED") + '</div>';
+    } else {
+      if (typeof playSound === "function") playSound("accessGranted", 0.6);
+
+      box.innerHTML =
+        '<div style="font-size:24px;color:#4cff91;margin-bottom:14px;">HAM OS IS CURRENT</div>' +
+
+        '<div style="margin-bottom:14px;">INSTALLED VERSION<br>' +
+        '<span style="color:#4cff91;font-size:20px;">HAM OS ' + CURRENT + '</span></div>' +
+
+        '<div style="margin-bottom:14px;">LAST CHECKED<br>' +
+        '<span style="color:#2a9155;">' + new Date().toLocaleString() + '</span></div>' +
+
+        '<div style="color:#2a9155;">No new software packages found.</div>';
+    }
+  } catch (err) {
+    if (typeof playSound === "function") playSound("accessDenied", 0.8);
+
+    box.innerHTML =
+      '<div style="font-size:24px;color:#ff6b6b;margin-bottom:14px;">UPDATE SERVER OFFLINE</div>' +
+      '<div style="line-height:1.7;">Could not contact HAM update server.<br><br>' +
+      '<span style="color:#2a9155;">https://joemto20-tech.github.io/HAMNET/updates/version.json</span><br><br>' +
+      '<span style="color:#2a9155;">' + (err.message || err) + '</span></div>';
+  }
+
+  addBtn("CHECK AGAIN", function(){
+    if (typeof playStaticHit === "function") playStaticHit();
+    renderUpdates();
+  }, true);
+
+  addBtn("◄ BACK", goBack);
+}
+
+
 function render() {
   setAmbientForScreen();
   scr.innerHTML = '';
@@ -2538,7 +2621,7 @@ function render() {
   else if (screen==='holotapes') renderHolotapes();
   else if (screen==='tape') renderHolotapePlayer();
   else if (screen==='recorder') renderRecorder();
-  else if (screen==='updates') renderText("UPDATES", [DATA.meta.notice].concat(DATA.updates));
+  else if (screen==='updates') renderUpdates();
   else if (screen==='notes') renderList("FIELD NOTES", state.notes.concat(['+ ADD NOTE']));
   else if (screen==='note') renderNote();
   else if (screen==='checklist') renderChecklist();
