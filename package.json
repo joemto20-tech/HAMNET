@@ -1,7 +1,7 @@
 {
   "name": "ham-command-terminal",
   "version": "1.0.0",
-  "description": "HAM Field Network Terminal",
+  "description": "NVMP Companion Terminal",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -16,17 +16,32 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.ham.commandterminal",
-    "productName": "HAM Command Terminal",
+    "appId": "com.nvmp.companion",
+    "productName": "NVMP Companion",
+    "artifactName": "${productName}-${version}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
     "files": [
       "main.js",
       "preload.js",
+      "server.js",
       "package.json",
       "public/**/*",
-      "node_modules/**/*"
+      "assets/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/NVMP_RadioTower.ico"
+    },
+    "nsis": {
+      "installerIcon": "assets/NVMP_RadioTower.ico",
+      "uninstallerIcon": "assets/NVMP_RadioTower.ico",
+      "installerHeaderIcon": "assets/NVMP_RadioTower.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NVMP Companion"
     }
   }
 }
