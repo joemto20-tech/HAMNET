@@ -1,11 +1,14 @@
 {
   "name": "ham-command-terminal",
   "version": "1.0.0",
-  "description": "NVMP Companion Terminal",
+  "description": "NVMP Companion / HAM Terminal",
   "main": "main.js",
+  "author": "HAMNET",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
   },
   "dependencies": {
     "axios": "^1.18.1",
@@ -16,29 +19,33 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.nvmp.companion",
+    "appId": "com.hamnet.nvmpcompanion",
     "productName": "NVMP Companion",
-    "artifactName": "${productName}-${version}.${ext}",
     "directories": {
-      "output": "dist",
-      "buildResources": "assets"
+      "output": "dist"
     },
     "files": [
-      "main.js",
-      "preload.js",
-      "server.js",
-      "package.json",
-      "public/**/*",
-      "assets/**/*"
+      "**/*",
+      "!dist/**",
+      "!node_modules/.cache/**"
     ],
+    "extraMetadata": {
+      "main": "main.js"
+    },
     "win": {
-      "target": "nsis",
-      "icon": "assets/NVMP_RadioTower.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon_fixed.ico"
     },
     "nsis": {
-      "installerIcon": "assets/NVMP_RadioTower.ico",
-      "uninstallerIcon": "assets/NVMP_RadioTower.ico",
-      "installerHeaderIcon": "assets/NVMP_RadioTower.ico",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "NVMP Companion"
