@@ -21,7 +21,8 @@ function installMediaPermissions() {
 }
 
 ipcMain.handle("get-radd", async () => {
-    const res = await fetch("http://localhost:3177/api/radd");
+    const port = process.env.HAM_PORT || 3177;
+    const res = await fetch(`http://localhost:${port}/api/radd`);
     if (!res.ok) throw new Error(`HAM ATK server returned ${res.status}`);
     return await res.json();
 });
