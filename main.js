@@ -21,7 +21,8 @@ function installMediaPermissions() {
 }
 
 ipcMain.handle("get-radd", async () => {
-    const res = await fetch("http://localhost:3177/api/radd");
+    const port = process.env.HAM_PORT || 3177;
+    const res = await fetch(`http://localhost:${port}/api/radd`);
     if (!res.ok) throw new Error(`HAM ATK server returned ${res.status}`);
     return await res.json();
 });
@@ -131,6 +132,25 @@ ipcMain.handle("get-character", async () => {
     return await res.json();
 });
 
+
+ipcMain.handle("close-app", async () => {
+    app.quit();
+    return { closing: true };
+});
+
+ipcMain.handle("move-window-by", async (event, delta) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return { moved: false };
+
+    const dx = Math.round(Number(delta && delta.x) || 0);
+    const dy = Math.round(Number(delta && delta.y) || 0);
+    if (!dx && !dy) return { moved: false };
+
+    const [x, y] = win.getPosition();
+    win.setPosition(x + dx, y + dy);
+    return { moved: true };
+});
+
 ipcMain.handle("open-nvmp-login", async () => {
     return new Promise((resolve) => {
         if (loginWindow && !loginWindow.isDestroyed()) {
@@ -168,6 +188,7 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
+        frame: false,
         autoHideMenuBar: true,
         backgroundColor: "#000000",
         webPreferences: {

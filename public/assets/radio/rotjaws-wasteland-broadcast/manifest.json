@@ -1,0 +1,77 @@
+{
+  "station": "Rotjaws Wasteland Broadcast",
+  "generatedFrom": "public/assets/radio/rotjaws-wasteland-broadcast",
+  "tracks": [
+    {
+      "id": "rotjaws-01",
+      "title": "Distordeon - NCR Holiday",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/01-radio-hamfolder-distordeon-ncr-holiday.mp3",
+      "bytes": 4331710,
+      "kind": "song"
+    },
+    {
+      "id": "rotjaws-02",
+      "title": "Distordeon - Rusty Alluminati",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/02-radio-hamfolder-distordeon-rusty-alluminati.mp3",
+      "bytes": 4862319,
+      "kind": "song"
+    },
+    {
+      "id": "rotjaws-03",
+      "title": "MTO - Bang Bang (Nukes to a Knife Fight)",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/03-radio-hamfolder-mto-bang-bang-nukes-to-a-knife-fight.mp3",
+      "bytes": 4369506,
+      "kind": "song"
+    },
+    {
+      "id": "rotjaws-04",
+      "title": "MTO - Bleach The Dream (Atomic Wrangler sessions)",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/04-radio-hamfolder-mto-bleach-the-dream-atomic-wrangler-sessions.mp3",
+      "bytes": 2502070,
+      "kind": "song"
+    },
+    {
+      "id": "rotjaws-05",
+      "title": "MTO - Bleach The Dream",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/05-radio-hamfolder-mto-bleach-the-dream.mp3",
+      "bytes": 4484028,
+      "kind": "song"
+    },
+    {
+      "id": "rotjaws-07",
+      "title": "RJGranny",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/07-radio-hamfolder-rjgranny.mp3",
+      "bytes": 945588,
+      "kind": "rotjaw_voice"
+    },
+    {
+      "id": "rotjaws-08",
+      "title": "RJV1",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/08-radio-hamfolder-rjv1.mp3",
+      "bytes": 615397,
+      "kind": "rotjaw_voice"
+    },
+    {
+      "id": "rotjaws-09",
+      "title": "RJV2",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/09-radio-hamfolder-rjv2.mp3",
+      "bytes": 383011,
+      "kind": "rotjaw_voice"
+    },
+    {
+      "id": "rotjaws-10",
+      "title": "Rotjaw - Thoughts on Taxes",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/10-radio-hamfolder-rotjaw-thoughts-on-taxes.mp3",
+      "bytes": 760013,
+      "kind": "rotjaw_voice"
+    },
+    {
+      "id": "rotjaws-11",
+      "title": "Rotjaw and The Ferals - Talon Tanked Unity",
+      "file": "assets/radio/rotjaws-wasteland-broadcast/11-radio-hamfolder-rotjaw-and-the-ferals-talon-tanked-unity.mp3",
+      "bytes": 2286562,
+      "kind": "rotjaw_voice"
+    }
+  ],
+  "playbackRule": "Shuffle MTO/Distordeon songs and insert one Rotjaw voice break between songs."
+}
