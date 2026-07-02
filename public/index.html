@@ -1599,7 +1599,9 @@ body { background:#000 !important; color:var(--term-main); }
 .map-route-segment { position:absolute; height:2px; left:var(--route-x); top:var(--route-y); width:var(--route-length); transform:rotate(var(--route-angle)) scaleY(calc(1 / var(--map-zoom, 1))); transform-origin:left center; border-top:2px dashed color-mix(in srgb, var(--term-alert) 78%, transparent); opacity:.9; z-index:3; pointer-events:none; }
 .map-ping-banner,
 .map-target-banner { border:1px solid var(--term-main); background:rgba(0,0,0,.72); color:var(--term-main); padding:7px 9px; box-shadow:0 0 12px var(--term-glow); }
-.map-ping-label { position:absolute; left:calc(var(--x, 50%) + 12px); top:calc(var(--y, 50%) - 8px); color:var(--term-alert); font-size:10px; background:rgba(0,0,0,.72); padding:2px 4px; white-space:nowrap; z-index:9; }
+.map-ping-label { position:absolute; left:var(--x, 50%); top:var(--y, 50%); transform:translate(12px, -8px) scale(calc(1 / var(--map-zoom, 1))); transform-origin:left top; color:var(--term-alert); font-size:10px; background:rgba(0,0,0,.72); padding:2px 4px; white-space:nowrap; z-index:9; pointer-events:none; }
+.map-ping-marker.emergency { border-color:var(--term-alert); color:var(--term-alert); box-shadow:0 0 16px var(--term-alert); }
+.atk-map-camera .map-ping-banner { position:absolute; left:8px; top:8px; z-index:13; pointer-events:none; }
 .map-target-pulse { animation:mapPulse 1.4s ease-in-out infinite; }
 @keyframes mapPulse { 0%,100%{box-shadow:0 0 8px var(--term-glow)} 50%{box-shadow:0 0 24px var(--term-alert)} }
 .atk-map-info { position:absolute; left:8px; bottom:8px; width:min(470px, 44%); max-height:42%; overflow:auto; border:1px solid var(--term-line); background:rgba(0,0,0,.72); color:var(--term-main); padding:8px 10px; z-index:12; }
@@ -2838,6 +2840,198 @@ function getRaddHousePointsForRender() {
   });
 }
 
+
+function clampMapPercent(value) {
+  var n = Number(value);
+  if (!isFinite(n)) return NaN;
+  return Math.max(0, Math.min(100, n));
+}
+
+function getMapStringValue(obj, fields) {
+  if (!obj) return "";
+  for (var i = 0; i < fields.length; i++) {
+    var value = obj[fields[i]];
+    if (value !== undefined && value !== null && String(value).trim() !== "") return String(value).trim();
+  }
+  return "";
+}
+
+function getMapPercentValue(obj, fields) {
+  if (!obj) return NaN;
+  for (var i = 0; i < fields.length; i++) {
+    var value = obj[fields[i]];
+    if (value === undefined || value === null || String(value).trim() === "") continue;
+    var n = clampMapPercent(value);
+    if (isFinite(n)) return n;
+  }
+  return NaN;
+}
+
+function normalizePingMapId(value) {
+  var raw = String(value || "").trim();
+  if (!raw) return "";
+  var rawLower = raw.toLowerCase();
+  var compact = rawLower.replace(/[^a-z0-9]+/g, "");
+  var maps = MAP_RADD_MAPS || [];
+  for (var i = 0; i < maps.length; i++) {
+    var map = maps[i] || {};
+    if (rawLower === String(map.id || "").toLowerCase()) return map.id;
+    if (normalizeMapName(raw) === normalizeMapName(map.label || map.id)) return map.id;
+    if (String(map.worldspace || "") === raw) return map.id;
+    if ((map.includes || []).map(String).indexOf(raw) >= 0) return map.id;
+  }
+  if (compact === "sanfrancisco" || (compact.indexOf("san") >= 0 && compact.indexOf("fran") >= 0)) return "sf";
+  if (compact === "bigmt" || compact === "bigmountain") return "bigmt";
+  if (compact.indexOf("zion") >= 0) return "zion";
+  if (compact.indexOf("mojave") >= 0 || compact.indexOf("wastelandnv") >= 0 || compact.indexOf("newvegas") >= 0) return "mojave";
+  return slugMapId(raw);
+}
+
+function getMapLabelForId(mapId) {
+  var id = normalizePingMapId(mapId) || String(mapId || "");
+  var map = (MAP_RADD_MAPS || []).find(function(m) { return m.id === id; });
+  return (map && map.label) || (id ? id.toUpperCase() : "UNKNOWN MAP");
+}
+
+function getCurrentPingLocationChoice() {
+  var char = (typeof NVMP_CHARACTER !== "undefined" && NVMP_CHARACTER) ? NVMP_CHARACTER : {};
+  var nested = char.location && typeof char.location === "object" ? char.location : null;
+  var label = getMapStringValue(char, ["currentLocation", "current_location", "location_name", "cellName", "cell", "zone", "area", "region", "worldspaceName", "worldspace", "location"]);
+  if (!label && nested) label = getMapStringValue(nested, ["name", "label", "title", "cell", "zone", "area", "region", "worldspace"]);
+  var x = getMapPercentValue(char, ["mapX", "map_x", "x", "posX", "pos_x", "positionX", "position_x"]);
+  var y = getMapPercentValue(char, ["mapY", "map_y", "y", "posY", "pos_y", "positionY", "position_y"]);
+  if ((!isFinite(x) || !isFinite(y)) && nested) {
+    x = getMapPercentValue(nested, ["mapX", "map_x", "x", "posX", "pos_x", "positionX", "position_x"]);
+    y = getMapPercentValue(nested, ["mapY", "map_y", "y", "posY", "pos_y", "positionY", "position_y"]);
+  }
+  var rawMapId = getMapStringValue(char, ["mapId", "map_id", "world", "worldspace", "worldspaceId", "worldspace_id"]);
+  if (!rawMapId && nested) rawMapId = getMapStringValue(nested, ["mapId", "map_id", "world", "worldspace", "worldspaceId", "worldspace_id"]);
+  var mapId = normalizePingMapId(rawMapId) || (isFinite(x) && isFinite(y) ? MAP_ACTIVE_ID : "");
+  return {
+    id: "current_location",
+    name: label || "Current Location",
+    label: label ? "CURRENT LOCATION // " + label : "CURRENT LOCATION",
+    type: "current",
+    mapId: mapId,
+    x: isFinite(x) ? x : undefined,
+    y: isFinite(y) ? y : undefined,
+    tags: ["current-location"]
+  };
+}
+
+function addPingLocationChoice(list, used, raw) {
+  if (!raw) return;
+  var name = raw.name || raw.label || raw.title || raw.location;
+  if (!name) return;
+  var x = getMapPercentValue(raw, ["mapX", "map_x", "x", "percentX", "percent_x"]);
+  var y = getMapPercentValue(raw, ["mapY", "map_y", "y", "percentY", "percent_y"]);
+  var mapId = normalizePingMapId(raw.mapId || raw.map_id || raw.world || raw.worldspace || raw.worldspaceId || raw.map) || (isFinite(x) && isFinite(y) ? "mojave" : "");
+  var key = (mapId || "any") + ":" + normalizeMapName(name);
+  if (!normalizeMapName(name) || used[key]) return;
+  used[key] = true;
+  list.push({
+    id: raw.id || raw.locationId || slugMapId(name),
+    name: String(name),
+    label: raw.label && raw.label !== name ? String(raw.label) : String(name),
+    type: raw.type || "poi",
+    faction: raw.faction || raw.owner || "",
+    region: raw.region || getMapLabelForId(mapId),
+    mapId: mapId,
+    x: isFinite(x) ? x : undefined,
+    y: isFinite(y) ? y : undefined,
+    tags: raw.tags || []
+  });
+}
+
+function getHamnetPingLocationChoices(includeCurrent) {
+  var list = [];
+  var used = {};
+  if (includeCurrent !== false) addPingLocationChoice(list, used, getCurrentPingLocationChoice());
+  Object.keys(JOB_LOCATIONS || {}).forEach(function(key) {
+    var job = JOB_LOCATIONS[key];
+    addPingLocationChoice(list, used, {
+      id: "job_" + slugMapId(key),
+      name: job.label || key,
+      label: (job.label || key) + " // JOB",
+      type: "job",
+      mapId: job.mapId,
+      x: job.x,
+      y: job.y,
+      region: getMapLabelForId(job.mapId),
+      tags: ["job"]
+    });
+  });
+  getIndexedMapLocationsForRender().forEach(function(loc) { addPingLocationChoice(list, used, loc); });
+  getAnchoredMojaveLocations().map(adaptLegacyMapLocation).forEach(function(loc) { addPingLocationChoice(list, used, loc); });
+  (MAP_RADD_HOUSE_POINTS || []).forEach(function(loc) {
+    addPingLocationChoice(list, used, Object.assign({}, loc, { type: "house", tags: (loc.tags || []).concat(["player-home", "mail-drop", "live-house"]) }));
+  });
+  (MAP_RADD_CAPTURE_POINTS || []).forEach(function(loc) {
+    addPingLocationChoice(list, used, Object.assign({}, loc, { type: "capture_point", tags: (loc.tags || []).concat(["capture-point", "protection-route"]) }));
+  });
+  var current = list.filter(function(loc) { return loc.id === "current_location"; });
+  var rest = list.filter(function(loc) { return loc.id !== "current_location"; }).sort(function(a, b) {
+    if (a.mapId === MAP_ACTIVE_ID && b.mapId !== MAP_ACTIVE_ID) return -1;
+    if (b.mapId === MAP_ACTIVE_ID && a.mapId !== MAP_ACTIVE_ID) return 1;
+    return String(a.name).localeCompare(String(b.name));
+  });
+  return current.concat(rest);
+}
+
+function renderPingLocationOptions(choices) {
+  choices = choices && choices.length ? choices : [getCurrentPingLocationChoice()];
+  return choices.map(function(loc) {
+    var mapLabel = loc.mapId ? " // " + getMapLabelForId(loc.mapId) : "";
+    var typeLabel = loc.type && loc.type !== "current" ? " // " + getMapLocationTypeLabel(isPlayerHomeLocation(loc) ? "player_home" : loc.type) : "";
+    var attrs = ' value="' + escapeHtml(loc.name).replace(/"/g, '&quot;') + '"';
+    if (loc.id) attrs += ' data-location-id="' + escapeHtml(loc.id).replace(/"/g, '&quot;') + '"';
+    if (loc.mapId) attrs += ' data-map-id="' + escapeHtml(loc.mapId).replace(/"/g, '&quot;') + '"';
+    if (isFinite(Number(loc.x))) attrs += ' data-x="' + Number(loc.x) + '"';
+    if (isFinite(Number(loc.y))) attrs += ' data-y="' + Number(loc.y) + '"';
+    return '<option' + attrs + '>' + escapeHtml((loc.label || loc.name) + typeLabel + mapLabel) + '</option>';
+  }).join('');
+}
+
+function setMapLivePingsVisible(value) {
+  MAP_LIVE_PINGS_VISIBLE = !!value;
+  localStorage.setItem(MAP_LIVE_PINGS_VISIBLE_KEY, MAP_LIVE_PINGS_VISIBLE ? "1" : "0");
+  if (screen === "map") renderMap();
+}
+
+function toggleMapLivePingsVisible() {
+  setMapLivePingsVisible(!MAP_LIVE_PINGS_VISIBLE);
+}
+
+function resolveMapPingPoint(p) {
+  if (!p) return null;
+  var rawMapId = getMapStringValue(p, ["mapId", "map_id", "world", "worldspace", "worldspaceId", "worldspace_id", "map"]);
+  var mapId = normalizePingMapId(rawMapId);
+  var x = getMapPercentValue(p, ["mapX", "map_x", "x", "percentX", "percent_x"]);
+  var y = getMapPercentValue(p, ["mapY", "map_y", "y", "percentY", "percent_y"]);
+  if (isFinite(x) && isFinite(y)) {
+    mapId = mapId || "mojave";
+    if (mapId !== MAP_ACTIVE_ID) return null;
+    return { x: x, y: y, mapId: mapId };
+  }
+
+  var locationId = getMapStringValue(p, ["locationId", "location_id"]);
+  var locationName = getMapStringValue(p, ["location", "site", "zone", "area", "title", "name"]);
+  var normalizedName = normalizeMapName(locationName);
+  var choices = getHamnetPingLocationChoices(false);
+  for (var i = 0; i < choices.length; i++) {
+    var loc = choices[i];
+    var locMapId = normalizePingMapId(loc.mapId) || "mojave";
+    if (locMapId !== MAP_ACTIVE_ID) continue;
+    var idMatches = locationId && String(loc.id) === String(locationId);
+    var nameMatches = normalizedName && normalizeMapName(loc.name) === normalizedName;
+    if (!idMatches && !nameMatches) continue;
+    var locX = getMapPercentValue(loc, ["x", "mapX"]);
+    var locY = getMapPercentValue(loc, ["y", "mapY"]);
+    if (isFinite(locX) && isFinite(locY)) return { x: locX, y: locY, mapId: locMapId };
+  }
+  return null;
+}
+
 function addMapLocationByIdOrName(byId, loc) {
   var locName = normalizeMapName(loc && loc.name);
   if (locName) {
@@ -3161,6 +3355,8 @@ let MAP_RADD_HOUSE_POINTS = [];
 let MAP_RADD_MAPS = [];
 let MAP_ACTIVE_ID = "mojave";
 let MAP_ROUTE_LAYER_ENABLED = true;
+const MAP_LIVE_PINGS_VISIBLE_KEY = "ham_map_live_pings_visible";
+let MAP_LIVE_PINGS_VISIBLE = localStorage.getItem(MAP_LIVE_PINGS_VISIBLE_KEY) !== "0";
 let MAP_SOURCE_IMAGE = "assets/mapmojave.png";
 const MAP_LOCATION_FILTER_TYPES = ["all", "player_home", "house", "job", "faction_base", "vendor", "radio", "broadcast", "checkpoint", "poi", "enemy", "capture_point", "unknown"];
 let LAST_LOADING_SOUND = false;
@@ -6259,19 +6455,31 @@ function getPingOperatorInfo() {
 
 async function sendDiscordLivePing(payload) {
   var operator = getPingOperatorInfo();
+  var body = {
+    type: "ping",
+    operator: operator.name,
+    rank: operator.rank,
+    faction: operator.faction,
+    sparks: operator.sparks,
+    location: payload.location || "Unknown",
+    priority: payload.priority || "Routine",
+    message: payload.message || "No report supplied."
+  };
+  if (payload.locationId) body.locationId = payload.locationId;
+  if (payload.mapId) body.mapId = payload.mapId;
+  if (payload.x !== undefined && payload.x !== "" && isFinite(Number(payload.x))) {
+    body.x = Number(payload.x);
+    body.mapX = Number(payload.x);
+  }
+  if (payload.y !== undefined && payload.y !== "" && isFinite(Number(payload.y))) {
+    body.y = Number(payload.y);
+    body.mapY = Number(payload.y);
+  }
+
   var res = await fetch(NVMP_LIVE_PINGS_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      type: "ping",
-      operator: operator.name,
-      rank: operator.rank,
-      faction: operator.faction,
-      sparks: operator.sparks,
-      location: payload.location || "Unknown",
-      priority: payload.priority || "Routine",
-      message: payload.message || "No report supplied."
-    })
+    body: JSON.stringify(body)
   });
 
   var data = await res.json().catch(function(){ return { ok: false, error: "Bad relay response" }; });
@@ -6285,6 +6493,13 @@ function renderLivePings() {
   var wrap = document.createElement("div");
   wrap.className = "ping-wrap";
   var operator = getPingOperatorInfo();
+  if (typeof loadMapLocationIndex === "function" && (!window.HAM_MAP_INDEX || !Array.isArray(window.HAM_MAP_INDEX.locations))) {
+    loadMapLocationIndex().then(function(){ if (screen === "livePings") render(); }).catch(function(){});
+  }
+  if (!MAP_RADD_MAPS.length && typeof loadMapProtectionRoutes === "function") {
+    loadMapProtectionRoutes().then(function(){ if (screen === "livePings") render(); }).catch(function(){});
+  }
+  var pingLocationOptions = renderPingLocationOptions(getHamnetPingLocationChoices(true));
 
   var recent = (HAMNET_FEED_CACHE || []).slice(0, 18);
   var feedHtml = '<div class="ping-card"><div class="ping-feed-title">LATEST HAMNET TRAFFIC</div>';
@@ -6311,7 +6526,7 @@ function renderLivePings() {
     '<div class="ping-card"><div class="tp-title">OPERATOR AUTO-FILL</div>' +
     '<div class="tp-sub">Operator: <span class="spark-blue">' + escapeHtml(operator.name) + '</span> // Rank: <span class="spark-blue">' + escapeHtml(operator.rank) + '</span> // Faction: <span class="spark-blue">' + escapeHtml(operator.faction) + '</span></div></div>' +
     '<div class="ping-card"><div class="tp-title">SEND LIVE PING</div>' +
-    '<div class="tp-label">LOCATION</div><input id="pingLocation" class="ping-input" placeholder="Example: Black Mountain, Freeside, Primm">' +
+    '<div class="tp-label">LOCATION</div><select id="pingLocation" class="ping-select">' + pingLocationOptions + '</select>' +
     '<div class="tp-label">PRIORITY</div><select id="pingPriority" class="ping-select"><option>Routine</option><option>Important</option><option>Emergency</option><option>Broadcast</option><option>News</option></select>' +
     '<div class="tp-label">REPORT</div><textarea id="pingMessage" class="ping-textarea" placeholder="Type the live report here..."></textarea>' +
     '<button id="sendPingBtn" class="job-location-btn">SEND LIVE PING</button>' +
@@ -6337,8 +6552,14 @@ function renderLivePings() {
       try {
         status.style.color = "";
         status.textContent = "Transmitting live ping...";
+        var locationSelect = wrap.querySelector("#pingLocation");
+        var locationOption = locationSelect && locationSelect.options ? locationSelect.options[locationSelect.selectedIndex] : null;
         await sendDiscordLivePing({
-          location: wrap.querySelector("#pingLocation").value,
+          location: locationSelect ? locationSelect.value : "Unknown",
+          locationId: locationOption ? locationOption.dataset.locationId : "",
+          mapId: locationOption ? locationOption.dataset.mapId : "",
+          x: locationOption ? locationOption.dataset.x : "",
+          y: locationOption ? locationOption.dataset.y : "",
           priority: wrap.querySelector("#pingPriority").value,
           message: wrap.querySelector("#pingMessage").value
         });
@@ -7206,37 +7427,46 @@ async function fetchMapPings(force) {
   return MAP_PINGS_CACHE;
 }
 
-function addMapPingOverlay(body) {
-  if (!body) return;
+function addMapPingOverlay(surface, bannerHost) {
+  if (!surface || !MAP_LIVE_PINGS_VISIBLE) return;
 
-  if (MAP_PINGS_CACHE && MAP_PINGS_CACHE.length) {
+  var plotted = [];
+  (MAP_PINGS_CACHE || []).forEach(function(p) {
+    var point = resolveMapPingPoint(p);
+    if (!point) return;
+    plotted.push({ ping: p, point: point });
+  });
+
+  if (plotted.length && bannerHost) {
     var banner = document.createElement("div");
     banner.className = "map-ping-banner";
-    banner.textContent = "LIVE MAP PINGS // " + MAP_PINGS_CACHE.length + " ACTIVE";
-    body.appendChild(banner);
+    banner.textContent = "LIVE MAP PINGS // " + plotted.length + " ACTIVE ON " + getMapLabelForId(MAP_ACTIVE_ID).toUpperCase();
+    bannerHost.appendChild(banner);
   }
 
-  (MAP_PINGS_CACHE || []).forEach(function(p) {
-    var x = Number(p.x || 50);
-    var y = Number(p.y || 50);
+  plotted.forEach(function(entry) {
+    var p = entry.ping;
+    var x = entry.point.x;
+    var y = entry.point.y;
+    var isEmergency = String(p.priority || "").toLowerCase() === "emergency";
 
     var marker = document.createElement("div");
-    marker.className = "map-ping-marker";
-    marker.style.left = x + "%";
-    marker.style.top = y + "%";
-    marker.textContent = p.priority === "Emergency" ? "◆" : "◇";
-    body.style.position = "relative";
-    body.appendChild(marker);
+    marker.className = "map-ping-marker" + (isEmergency ? " emergency" : "");
+    marker.style.setProperty("--x", x + "%");
+    marker.style.setProperty("--y", y + "%");
+    marker.title = "LIVE PING // " + (p.location || "UNKNOWN") + " // " + (p.priority || "Routine");
+    marker.textContent = isEmergency ? "!" : "P";
+    surface.appendChild(marker);
 
     var label = document.createElement("div");
     label.className = "map-ping-label";
-    label.style.left = x + "%";
-    label.style.top = y + "%";
+    label.style.setProperty("--x", x + "%");
+    label.style.setProperty("--y", y + "%");
     label.innerHTML =
-      String(p.location || "UNKNOWN").toUpperCase() +
+      escapeHtml(String(p.location || "UNKNOWN").toUpperCase()) +
       "<br>" +
-      String(p.message || "").slice(0, 80);
-    body.appendChild(label);
+      escapeHtml(String(p.message || "").slice(0, 80));
+    surface.appendChild(label);
   });
 }
 
@@ -7315,6 +7545,7 @@ function renderMap() {
         '<span>CAPTURE LINKS ' + routeLines.length + '</span>' +
         '<span>POINTS ' + MAP_RADD_CAPTURE_POINTS.length + '</span>' +
         '<span>LIVE HOUSES ' + MAP_RADD_HOUSE_POINTS.length + '</span>' +
+        '<span>LIVE PINGS ' + (MAP_LIVE_PINGS_VISIBLE ? ((MAP_PINGS_CACHE || []).length + ' ON') : 'OFF') + '</span>' +
         '<span>MAP ' + escapeHtml(activeRaddMap.label || MAP_ACTIVE_ID.toUpperCase()) + '</span>' +
         '<span>FILTER ' + getMapLocationTypeLabel(MAP_LOCATION_FILTER_TYPE) + '</span>' +
         (MAP_LOCATION_SEARCH_QUERY ? '<span>SEARCH ' + escapeHtml(MAP_LOCATION_SEARCH_QUERY) + '</span>' : '') +
@@ -7346,7 +7577,7 @@ function renderMap() {
       '</select>' +
       '<div class="map-filter-tabs">' + quickFilters.map(function(f) {
         return '<button class="map-filter-chip' + (MAP_LOCATION_FILTER_TYPE === f[0] ? ' active' : '') + '" data-map-filter="' + f[0] + '">' + f[1] + '</button>';
-      }).join('') + '</div>';
+      }).join('') + '<button class="map-filter-chip live-ping-toggle' + (MAP_LIVE_PINGS_VISIBLE ? ' active' : '') + '" data-map-live-pings-toggle>' + (MAP_LIVE_PINGS_VISIBLE ? 'LIVE PINGS ON' : 'LIVE PINGS OFF') + '</button></div>';
     wrap.appendChild(tools);
 
     var resultList = document.createElement("div");
@@ -7456,7 +7687,7 @@ function renderMap() {
       applyMapPan(surface);
     });
     initializeMapDragPan(camera, surface);
-    addMapPingOverlay(body);
+    addMapPingOverlay(surface, camera);
 
     var searchInput = wrap.querySelector("#mapLocationSearch");
     if (searchInput) {
@@ -7486,6 +7717,9 @@ function renderMap() {
     wrap.querySelectorAll("[data-map-filter]").forEach(function(btn) {
       btn.addEventListener("click", function() { setMapLocationFilter(btn.dataset.mapFilter, true); });
     });
+
+    var livePingToggle = wrap.querySelector("[data-map-live-pings-toggle]");
+    if (livePingToggle) livePingToggle.addEventListener("click", toggleMapLivePingsVisible);
 
     wrap.querySelectorAll("[data-map-location-idx]").forEach(function(btn) {
       btn.addEventListener("click", function() {
@@ -7521,6 +7755,7 @@ function renderMap() {
     addBtn("FILTER", cycleMapLocationFilter);
     addBtn("PLAYER HOMES", function(){ setMapLocationFilter("player_home", true); }, true);
     addBtn("CAPTURE POINTS", function(){ setMapLocationFilter("capture_point", true); });
+    addBtn(MAP_LIVE_PINGS_VISIBLE ? "HIDE LIVE PINGS" : "SHOW LIVE PINGS", toggleMapLivePingsVisible);
     addBtn("CLEAR SEARCH", function(){ MAP_LOCATION_SEARCH_QUERY = ""; selected = 0; renderMap(); });
     addBtn("ZOOM +", function(){ MAP_ZOOM = Math.min(3, Math.round((MAP_ZOOM + 0.25) * 100) / 100); renderMap(); });
     addBtn("ZOOM -", function(){ MAP_ZOOM = Math.max(1, Math.round((MAP_ZOOM - 0.25) * 100) / 100); if (MAP_ZOOM <= 1) resetMapPan(); renderMap(); });
