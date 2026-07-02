@@ -50,5 +50,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "NVMP Companion"
     }
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true
   }
 }
